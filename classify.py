@@ -3,7 +3,7 @@ from torch import nn
 from utils import preprocess, rev_label_map
 import json
 import os
-from nltk.tokenize import PunktSentenceTokenizer, TreebankWordTokenizer
+#from nltk.tokenize import PunktSentenceTokenizer, TreebankWordTokenizer
 from PIL import Image, ImageDraw, ImageFont
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -20,13 +20,13 @@ sentence_limit = 15
 word_limit = 20
 
 # Word map to encode with
-data_folder = '/media/ssd/han data'
+data_folder = './data'
 with open(os.path.join(data_folder, 'word_map.json'), 'r') as j:
     word_map = json.load(j)
 
 # Tokenizers
-sent_tokenizer = PunktSentenceTokenizer()
-word_tokenizer = TreebankWordTokenizer()
+#sent_tokenizer = PunktSentenceTokenizer()
+#word_tokenizer = TreebankWordTokenizer()
 
 
 def classify(document):

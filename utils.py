@@ -3,6 +3,7 @@ from torch import nn
 import numpy as np
 from collections import Counter
 from nltk.tokenize import PunktSentenceTokenizer, TreebankWordTokenizer
+from contractions import expandContractions
 from tqdm import tqdm
 import pandas as pd
 import itertools
@@ -10,6 +11,7 @@ import os
 import json
 import gensim
 import logging
+import MeCab
 
 classes = ['Society & Culture',
            'Science & Mathematics',
@@ -25,6 +27,7 @@ label_map = {k: v for v, k in enumerate(classes)}
 rev_label_map = {v: k for k, v in label_map.items()}
 
 # Tokenizers
+mecab = MeCab.Tagger ("-O wakati")
 sent_tokenizer = PunktSentenceTokenizer()
 word_tokenizer = TreebankWordTokenizer()
 
@@ -69,7 +72,10 @@ def read_csv(csv_folder, split, sentence_limit, word_limit):
 
         words = list()
         for s in sentences[:sentence_limit]:
-            w = word_tokenizer.tokenize(s)[:word_limit]
+            s1 = expandContractions(s)
+            s2 = ''.join([i for i in s1 if i.isalpha() or i.isspace()])
+            wakati = mecab.parse(s2)
+            w = word_tokenizer.tokenize(wakati)[:word_limit]
             # If sentence is empty (due to removing punctuation, digits, etc.)
             if len(w) == 0:
                 continue
