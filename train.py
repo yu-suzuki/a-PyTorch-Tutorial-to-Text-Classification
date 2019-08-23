@@ -7,7 +7,7 @@ from utils import *
 from datasets import HANDataset
 
 # Data parameters
-data_folder = '/media/ssd/han data'
+data_folder = './data'
 word2vec_file = os.path.join(data_folder, 'word2vec_model')  # path to pre-trained word2vec embeddings
 with open(os.path.join(data_folder, 'word_map.json'), 'r') as j:
     word_map = json.load(j)
