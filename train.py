@@ -16,8 +16,8 @@ with open(os.path.join(data_folder, 'word_map.json'), 'r') as j:
 n_classes = len(label_map)
 word_rnn_size = 50  # word RNN size
 sentence_rnn_size = 50  # character RNN size
-word_rnn_layers = 1  # number of layers in character RNN
-sentence_rnn_layers = 1  # number of layers in word RNN
+word_rnn_layers = 2  # number of layers in character RNN
+sentence_rnn_layers = 2  # number of layers in word RNN
 word_att_size = 100  # size of the word-level attention layer (also the size of the word context vector)
 sentence_att_size = 100  # size of the sentence-level attention layer (also the size of the sentence context vector)
 dropout = 0.3  # dropout
