@@ -3,8 +3,10 @@ from torch import nn
 from utils import preprocess, rev_label_map
 import json
 import os
-#from nltk.tokenize import PunktSentenceTokenizer, TreebankWordTokenizer
+from nltk.tokenize import PunktSentenceTokenizer, TreebankWordTokenizer
+from contractions import expandContractions
 from PIL import Image, ImageDraw, ImageFont
+import MeCab
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -25,8 +27,9 @@ with open(os.path.join(data_folder, 'word_map.json'), 'r') as j:
     word_map = json.load(j)
 
 # Tokenizers
-#sent_tokenizer = PunktSentenceTokenizer()
-#word_tokenizer = TreebankWordTokenizer()
+mecab = MeCab.Tagger ("-O wakati")
+sent_tokenizer = PunktSentenceTokenizer()
+word_tokenizer = TreebankWordTokenizer()
 
 
 def classify(document):
@@ -46,7 +49,10 @@ def classify(document):
 
     # Tokenize sentences into words
     for s in sentences[:sentence_limit]:
-        w = word_tokenizer.tokenize(s)[:word_limit]
+        s1 = expandContractions(s)
+        s2 = ''.join([i for i in s1 if i.isalpha() or i.isspace()])
+        wakati = mecab.parse(s2)
+        w = word_tokenizer.tokenize(wakati)[:word_limit]
         if len(w) == 0:
             continue
         doc.append(w)
