@@ -5,7 +5,7 @@ from datasets import HANDataset
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Data parameters
-data_folder = '/media/ssd/han data'
+data_folder = './data'
 
 # Evaluation parameters
 batch_size = 64  # batch size
