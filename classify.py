@@ -31,6 +31,8 @@ mecab = MeCab.Tagger ("-O wakati")
 sent_tokenizer = PunktSentenceTokenizer()
 word_tokenizer = TreebankWordTokenizer()
 
+document = "I like to use computer by Hewlett Packard. But dell is also good."
+visualize_attention(*classify(document))
 
 def classify(document):
     """
