@@ -197,4 +197,5 @@ if __name__ == '__main__':
     document = "You know what's wrong with this country? republicans and democrats. always at each other's throats\n There's no respect, no bipartisanship."
     document = "I like to use computer by Hewlett Packard. But dell is also good."
     print(document)
+    print(*classify(document))
     visualize_attention(*classify(document))
