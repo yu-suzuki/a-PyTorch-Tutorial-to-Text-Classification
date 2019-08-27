@@ -80,7 +80,7 @@ def main():
     criterion = criterion.to(device)
     if device == 'cuda':
         model = torch.nn.DataParallel(model)
-
+        cudnn.benchmark = True
     # DataLoaders
     train_loader = torch.utils.data.DataLoader(HANDataset(data_folder, 'train'), batch_size=batch_size, shuffle=True,
                                                num_workers=workers, pin_memory=True)
