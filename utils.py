@@ -101,9 +101,9 @@ def read_csv(csv_folder, split, sentence_limit, word_limit):
     return docs, labels, word_counter
 
 
-def create_input_files_fromdb(output_folder, sentence_limit, word_limit, min_word_count=5, save_word2vec_data=True):
+def create_input_files_fromdb(output_folder, hostname, database, sentence_limit, word_limit, min_word_count=5, save_word2vec_data=True):
     print('\nReading and preprocessing training data...\n')
-    train_docs, word_counter = read_db(sentence_limit, word_limit)
+    train_docs, word_counter = read_db(sentence_limit, word_limit, hostname, database)
 
     # Save text data for word2vec
     if save_word2vec_data:
@@ -147,13 +147,13 @@ def create_input_files_fromdb(output_folder, sentence_limit, word_limit, min_wor
     # Free some memory
     del train_docs, encoded_train_docs, sentences_per_train_document, words_per_train_sentence
 
-def read_db(sentence_limit, word_limit):
+def read_db(sentence_limit, word_limit, hostname, database):
     docs = []
     word_counter = Counter()
 
     reg = re.compile(r"^http")
 
-    con = psycopg2.connect(host="localhost", database="get_twitter_development", user="get_twitter",
+    con = psycopg2.connect(host=hostname, database=database, user="get_twitter",
                            password="get_twitter")
     cur = con.cursor()
     cur.execute("SELECT text from tweet_texts where lang='ja' and retweet=false and reply=false")
