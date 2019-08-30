@@ -12,6 +12,9 @@ import json
 import gensim
 import logging
 import MeCab
+import psycopg2
+import neologdn
+import re
 
 classes = ['Society & Culture',
            'Science & Mathematics',
@@ -27,7 +30,7 @@ label_map = {k: v for v, k in enumerate(classes)}
 rev_label_map = {v: k for k, v in label_map.items()}
 
 # Tokenizers
-mecab = MeCab.Tagger ("-O wakati")
+mecab = MeCab.Tagger("-O wakati")
 sent_tokenizer = PunktSentenceTokenizer()
 word_tokenizer = TreebankWordTokenizer()
 
@@ -42,7 +45,8 @@ def preprocess(text):
     if isinstance(text, float):
         return ''
 
-    return text.lower().replace('<br />', '\n').replace('<br>', '\n').replace('\\n', '\n').replace('&#xd;', '\n')
+    return neologdn.normalize(
+        text.lower().replace('<br />', '\n').replace('<br>', '\n').replace('\\n', '\n').replace('&#xd;', '\n'))
 
 
 def read_csv(csv_folder, split, sentence_limit, word_limit):
@@ -77,10 +81,16 @@ def read_csv(csv_folder, split, sentence_limit, word_limit):
             wakati = mecab.parse(s2)
             w = word_tokenizer.tokenize(wakati)[:word_limit]
             # If sentence is empty (due to removing punctuation, digits, etc.)
+            s_word = list()
+            for word in wakati:
+                a = neologdn.normalize(word)
+                print(a)
+                print(word)
             if len(w) == 0:
                 continue
             words.append(w)
             word_counter.update(w)
+            print(word_counter)
         # If all sentences were empty
         if len(words) == 0:
             continue
@@ -89,6 +99,91 @@ def read_csv(csv_folder, split, sentence_limit, word_limit):
         docs.append(words)
 
     return docs, labels, word_counter
+
+
+def create_input_files_fromdb(output_folder, sentence_limit, word_limit, min_word_count=5, save_word2vec_data=True):
+    print('\nReading and preprocessing training data...\n')
+    train_docs, word_counter = read_db(sentence_limit, word_limit)
+
+    # Save text data for word2vec
+    if save_word2vec_data:
+        torch.save(train_docs, os.path.join(output_folder, 'word2vec_data.pth.tar'))
+        print('\nText data for word2vec saved to %s.\n' % os.path.abspath(output_folder))
+
+    # Create word map
+    word_map = dict()
+    word_map['<pad>'] = 0
+    for word, count in word_counter.items():
+        if count >= min_word_count:
+            word_map[word] = len(word_map)
+    word_map['<unk>'] = len(word_map)
+    print('\nDiscarding words with counts less than %d, the size of the vocabulary is %d.\n' % (
+        min_word_count, len(word_map)))
+
+    with open(os.path.join(output_folder, 'word_map.json'), 'w') as j:
+        json.dump(word_map, j)
+    print('Word map saved to %s.\n' % os.path.abspath(output_folder))
+
+    # Encode and pad
+    print('Encoding and padding training data...\n')
+    encoded_train_docs = list(map(lambda doc: list(
+        map(lambda s: list(map(lambda w: word_map.get(w, word_map['<unk>']), s)) + [0] * (word_limit - len(s)),
+            doc)) + [[0] * word_limit] * (sentence_limit - len(doc)), train_docs))
+    sentences_per_train_document = list(map(lambda doc: len(doc), train_docs))
+    words_per_train_sentence = list(
+        map(lambda doc: list(map(lambda s: len(s), doc)) + [0] * (sentence_limit - len(doc)), train_docs))
+
+    # Save
+    print('Saving...\n')
+    assert len(encoded_train_docs) ==  len(sentences_per_train_document) == len(
+        words_per_train_sentence)
+    # Because of the large data, saving as a JSON can be very slow
+    torch.save({'docs': encoded_train_docs,
+                'sentences_per_document': sentences_per_train_document,
+                'words_per_sentence': words_per_train_sentence},
+               os.path.join(output_folder, 'TRAIN_data.pth.tar'))
+    print('Encoded, padded training data saved to %s.\n' % os.path.abspath(output_folder))
+
+    # Free some memory
+    del train_docs, encoded_train_docs, sentences_per_train_document, words_per_train_sentence
+
+def read_db(sentence_limit, word_limit):
+    docs = []
+    word_counter = Counter()
+
+    reg = re.compile(r"^http")
+
+    con = psycopg2.connect(host="localhost", database="get_twitter_development", user="get_twitter",
+                           password="get_twitter")
+    cur = con.cursor()
+    cur.execute("SELECT text from tweet_texts where lang='ja' and retweet=false and reply=false")
+    for r in cur:
+        sentences = list()
+        for paragraph in preprocess(r[0]).splitlines():
+            sentences.extend([s for s in sent_tokenizer.tokenize(paragraph)])
+
+        words = list()
+        for s in sentences[:sentence_limit]:
+            s1 = expandContractions(s)
+            s2 = ''.join([i for i in s1 if i.isalpha() or i.isspace()])
+            wakati = mecab.parse(s2)
+            w = word_tokenizer.tokenize(wakati)[:word_limit]
+            # If sentence is empty (due to removing punctuation, digits, etc.)
+            w2 = list()
+            for word in w:
+                m = reg.match(word)
+                if not m:
+                    w2.append(neologdn.normalize(word))
+            if len(w2) == 0:
+                continue
+            words.append(w2)
+            word_counter.update(w2)
+        # If all sentences were empty
+        if len(words) == 0:
+            continue
+
+        docs.append(words)
+    return docs, word_counter
 
 
 def create_input_files(csv_folder, output_folder, sentence_limit, word_limit, min_word_count=5,
@@ -197,7 +292,7 @@ def train_word2vec_model(data_folder, algorithm='skipgram'):
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
     # Initialize and train the model (this will take some time)
-    model = gensim.models.word2vec.Word2Vec(sentences=sentences, size=200, workers=8, window=10, min_count=5,
+    model = gensim.models.word2vec.Word2Vec(sentences=sentences, size=300, workers=8, window=10, min_count=5,
                                             sg=sg)
 
     # Normalize vectors and save model

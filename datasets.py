@@ -2,6 +2,9 @@ from torch.utils.data import Dataset
 import torch
 import os
 
+class DBDataset(Dataset):
+    def __init__():
+        return
 
 class HANDataset(Dataset):
     """
